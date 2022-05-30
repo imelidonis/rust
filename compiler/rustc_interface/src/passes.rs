@@ -794,6 +794,7 @@ pub static DEFAULT_QUERY_PROVIDERS: SyncLazy<Providers> = SyncLazy::new(|| {
     rustc_middle::hir::provide(providers);
     mir_borrowck::provide(providers);
     mir_build::provide(providers);
+    rustc_mir_dataflow::provide(providers);
     rustc_mir_transform::provide(providers);
     rustc_monomorphize::provide(providers);
     rustc_privacy::provide(providers);
@@ -979,6 +980,9 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
             }
         }
     });
+
+    // FIXME: (maybe) put this call inside one of the existing sess.time checks
+    sess.time("my_post_dominators", || tcx.ensure().post_dominators_analysis(()));
 
     sess.time("layout_testing", || layout_test::test_layout(tcx));
 

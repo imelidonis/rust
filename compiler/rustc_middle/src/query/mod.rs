@@ -854,6 +854,10 @@ rustc_queries! {
         }
     }
 
+    query post_dominators_analysis(_: ()) -> () {
+        desc { "trying to run my post-dom analysis" }
+    }
+
     /// Gets a complete map from all types to their inherent impls.
     /// Not meant to be used directly outside of coherence.
     query crate_inherent_impls(k: ()) -> CrateInherentImpls {

@@ -35,6 +35,7 @@ rustc_hir = { path = "../rustc_hir" }
 rustc_metadata = { path = "../rustc_metadata" }
 rustc_const_eval = { path = "../rustc_const_eval" }
 rustc_mir_build = { path = "../rustc_mir_build" }
+rustc_mir_dataflow = { path = "../rustc_mir_dataflow" }
 rustc_mir_transform = { path = "../rustc_mir_transform" }
 rustc_monomorphize = { path = "../rustc_monomorphize" }
 rustc_passes = { path = "../rustc_passes" }
