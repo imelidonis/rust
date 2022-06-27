@@ -103,3 +103,11 @@ pub mod util {
 
 // Allows macros to refer to this crate as `::rustc_middle`
 extern crate self as rustc_middle;
+
+use crate::ty::query::Providers;
+
+mod clients;
+
+pub fn provide(providers: &mut Providers) {
+    clients::provide(providers);
+}

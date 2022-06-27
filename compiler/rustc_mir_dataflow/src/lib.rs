@@ -17,7 +17,6 @@ extern crate rustc_middle;
 
 use rustc_ast::{self as ast, MetaItem};
 use rustc_middle::ty;
-use rustc_middle::ty::query::Providers;
 use rustc_session::Session;
 use rustc_span::symbol::{sym, Symbol};
 
@@ -41,12 +40,6 @@ pub mod impls;
 pub mod move_paths;
 pub mod rustc_peek;
 pub mod storage;
-
-mod clients;
-
-pub fn provide(providers: &mut Providers) {
-    clients::provide(providers);
-}
 
 pub(crate) mod indexes {
     pub(crate) use super::move_paths::MovePathIndex;
