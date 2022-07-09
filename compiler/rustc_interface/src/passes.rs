@@ -981,9 +981,6 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
         }
     });
 
-    // FIXME: (maybe) put this call inside one of the existing sess.time checks
-    sess.time("my_post_dominators", || tcx.ensure().post_dominators_analysis(()));
-
     sess.time("layout_testing", || layout_test::test_layout(tcx));
 
     // Avoid overwhelming user with errors if borrow checking failed.
@@ -1026,6 +1023,9 @@ fn analysis(tcx: TyCtxt<'_>, (): ()) -> Result<()> {
             }
         );
     });
+
+    // FIXME: (maybe) put this call inside one of the existing sess.time checks
+    sess.time("my_post_dominators", || tcx.ensure().post_dominators_analysis(()));
 
     Ok(())
 }

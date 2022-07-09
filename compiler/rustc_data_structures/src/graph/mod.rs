@@ -1,6 +1,7 @@
 use rustc_index::vec::Idx;
 
 pub mod dominators;
+pub mod post_dominators;
 pub mod implementation;
 pub mod iterate;
 mod reference;

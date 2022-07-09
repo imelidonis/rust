@@ -25,6 +25,7 @@ use polonius_engine::Atom;
 pub use rustc_ast::Mutability;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_data_structures::graph::dominators::{dominators, Dominators};
+use rustc_data_structures::graph::post_dominators::{post_dominators, PostDominators};
 use rustc_data_structures::graph::{self, GraphSuccessors};
 use rustc_index::bit_set::BitMatrix;
 use rustc_index::vec::{Idx, IndexVec};
@@ -557,6 +558,11 @@ impl<'tcx> Body<'tcx> {
     #[inline]
     pub fn dominators(&self) -> Dominators<BasicBlock> {
         dominators(self)
+    }
+
+    #[inline]
+    pub fn post_dominators(&self) -> PostDominators {
+        post_dominators(self)
     }
 
     #[inline]
