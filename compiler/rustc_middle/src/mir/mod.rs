@@ -26,7 +26,7 @@ pub use rustc_ast::Mutability;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_data_structures::graph::dominators::{dominators, Dominators};
 use rustc_data_structures::graph::post_dominators::{post_dominators, PostDominators};
-use rustc_data_structures::graph::{self, GraphSuccessors};
+use rustc_data_structures::graph::{self, GraphSuccessors, WithSuccessors};
 use rustc_index::bit_set::BitMatrix;
 use rustc_index::vec::{Idx, IndexVec};
 use rustc_serialize::{Decodable, Encodable};
@@ -3006,6 +3006,76 @@ impl<'tcx> graph::WithStartNode for Body<'tcx> {
     #[inline]
     fn start_node(&self) -> Self::Node {
         START_BLOCK
+    }
+}
+
+impl<'tcx> graph::WithExitNode for Body<'tcx> {
+
+    /// Returns the Exit Node for a `Body`. Because there are cases where
+    /// a `Body` doesn't have an Exit Node, it returns `Option`.
+    /// 
+    /// Example:
+    /// 
+    /// ```
+    /// fn endless() {
+    ///     loop {}
+    /// }
+    /// ```
+    /// 
+    /// produces this CFG:
+    /// 
+    ///     bb0
+    ///      |
+    ///      | __
+    ///      ||  |
+    ///      vv  |
+    ///     bb1--*
+    /// 
+    /// which doesn't have an Exit Node. For this case, returns `None`
+    //
+    // FIXME: Find a way to handle the above case.
+    // FIXME: Find a way to handle cases where the `Body` has multiple exits.
+    //
+    // Examples multiple exits:
+    // 
+    // ```
+    // fn pnck(x: i32) {
+    //      if x > 0 {
+    //          panic!();
+    //      }
+    // }
+    // ```
+    // 
+    // ```
+    // fn for_loop() {
+    //      for _i in [0, 1, 2] { }
+    // }
+    // ```
+    // 
+    fn exit_node(&self) -> Option<Self::Node> {
+
+        // In most cases, the last Basic Block is the Exit Node
+        // of this CFG.
+        let mut exit = self.basic_blocks().last().unwrap();
+        
+        // If last node has successors, try to find the Exit Node,
+        // searching the whole vector.
+        if self.successors(exit).next().is_some() {
+            for (index, bb) in self.basic_blocks().iter().enumerate() {
+                if bb.terminator().successors().next().is_none() {
+                    exit = BasicBlock::new(index);
+
+                    break;
+                } 
+            }
+        };
+
+        // If the exit node still have successors, that means
+        // this Body doesn't have an exit node so it returns None.
+        match self.successors(exit).next() {
+            Some(_) => None,
+            None => Some(exit)
+        }
     }
 }
 

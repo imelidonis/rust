@@ -16,6 +16,12 @@ impl<'graph, G: WithStartNode> WithStartNode for &'graph G {
     }
 }
 
+impl<'graph, G: WithExitNode> WithExitNode for &'graph G {
+    fn exit_node(&self) -> Option<Self::Node> {
+        (**self).exit_node()
+    }
+}
+
 impl<'graph, G: WithSuccessors> WithSuccessors for &'graph G {
     fn successors(&self, node: Self::Node) -> <Self as GraphSuccessors<'_>>::Iter {
         (**self).successors(node)
