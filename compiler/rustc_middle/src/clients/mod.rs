@@ -19,9 +19,7 @@ fn post_dominators_analysis<'tcx>(
     for def_id in tcx.mir_keys(()) {
 
         let def = ty::WithOptConstParam::unknown(def_id.to_def_id());
-        let body = &tcx.instance_mir(ty::InstanceDef::Item(def));
-        
-        println!(">>> Basic Blocks: {}", body.basic_blocks().len());
+        let body = tcx.instance_mir(ty::InstanceDef::Item(def));
 
         body.post_dominators();
     }
