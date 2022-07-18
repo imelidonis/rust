@@ -22,9 +22,8 @@ pub fn post_dominators<G: ControlFlowGraph + WithExitNode>(graph: G) -> PostDomi
 
     println!("--> calculating post-dominators");
 
-    
     if let Some(exit_node) = graph.exit_node() {
-        
+
         let total_nodes = graph.num_nodes();
 
         // Initialize pdom for each node to all, except exit,
