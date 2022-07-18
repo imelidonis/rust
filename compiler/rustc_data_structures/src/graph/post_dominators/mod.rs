@@ -3,6 +3,7 @@
 use super::{ControlFlowGraph, WithExitNode};
 use rustc_index::bit_set::BitSet;
 use rustc_index::vec::{Idx, IndexVec};
+use crate::work_queue::WorkQueue;
 
 
 #[derive(Clone, Debug)]
@@ -21,9 +22,10 @@ pub fn post_dominators<G: ControlFlowGraph + WithExitNode>(graph: G) -> PostDomi
 
     println!("--> calculating post-dominators");
 
-    let total_nodes = graph.num_nodes();
     
     if let Some(exit_node) = graph.exit_node() {
+        
+        let total_nodes = graph.num_nodes();
 
         // Initialize pdom for each node to all, except exit,
         // which pdoms only itself.
@@ -64,7 +66,30 @@ pub fn post_dominators<G: ControlFlowGraph + WithExitNode>(graph: G) -> PostDomi
             }
         }
 
-        println!("\t>>> pdom: {:?}", pdom);
+        // For each node v, keep all its post-dominators u
+        // that u != v. 
+        for (index, pdoms) in pdom.iter_enumerated_mut() {
+            pdoms.remove(index);
+        }
+
+        let mut ipdom: IndexVec<G::Node, Option<G::Node>> = IndexVec::from_elem_n(None, total_nodes);
+
+        let mut queue: WorkQueue<G::Node> = WorkQueue::with_none(total_nodes);
+        queue.insert(exit_node);
+
+        while let Some(node) = queue.pop() {
+            for (index, pdoms) in pdom.iter_enumerated_mut() {
+                pdoms.remove(node);
+
+                if pdoms.is_empty() && ipdom[index].is_none() {
+                    ipdom[index] = Some(node);
+                    queue.insert(index);
+                }
+            }
+        }
+
+        println!("\t>>> ipdom {:?}", ipdom);
+
     }
 
     PostDominators {}
