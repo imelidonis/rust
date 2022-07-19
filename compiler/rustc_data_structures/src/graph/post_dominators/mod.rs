@@ -76,6 +76,11 @@ pub fn post_dominators<G: ControlFlowGraph + WithExitNode>(graph: G) -> PostDomi
         let mut queue: WorkQueue<G::Node> = WorkQueue::with_none(total_nodes);
         queue.insert(exit_node);
 
+        // Starting from the exit node, remove it from every other
+        // node's post-dominators. Then if a node doesn't have any
+        // other post-dominator, add 'node' as its immediate post-
+        // domimator and insert that in the queue to repeat the
+        // process.
         while let Some(node) = queue.pop() {
             for (index, pdoms) in pdom.iter_enumerated_mut() {
                 pdoms.remove(node);
