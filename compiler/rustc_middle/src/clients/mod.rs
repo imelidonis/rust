@@ -21,6 +21,19 @@ fn post_dominators_analysis<'tcx>(
         let def = ty::WithOptConstParam::unknown(def_id.to_def_id());
         let body = tcx.instance_mir(ty::InstanceDef::Item(def));
 
-        body.post_dominators();
+        let post_dominators = body.post_dominators();
+
+        if post_dominators.is_constructed() {
+            println!("\t>>> Post Dominators calculated.");
+            println!("\t>>> Solution: {:?}", post_dominators);
+
+            print!("\t>>> ");
+            for (bb, _) in body.basic_blocks().iter_enumerated() {
+                if post_dominators.is_reachable(bb) {
+                    print!("IPDOM({:?}) = {:?}, ", bb, post_dominators.immediate_post_dominator(bb));
+                }
+            }
+            println!("");
+        }
     }
 }

@@ -7,18 +7,34 @@ use crate::work_queue::WorkQueue;
 
 
 #[derive(Clone, Debug)]
-pub struct PostDominators {
-
+pub struct PostDominators<N: Idx> {
+    immediate_post_dominators: IndexVec<N, Option<N>>,
+    is_constructed: bool,
 }
 
-impl PostDominators {
+impl<N: Idx> PostDominators<N> {
+    // In some cases the algorithm isn't able to find post-dominators.
+    // See the code for `exit_node`.
+    pub fn is_constructed(&self) -> bool {
+        self.is_constructed
+    }
 
+    pub fn is_reachable(&self, node: N) -> bool {
+        assert!(self.is_constructed(), "Immediate Post-Dominators were not found.");
+        self.immediate_post_dominators[node].is_some()
+    }
+
+    pub fn immediate_post_dominator(&self, node: N) -> N {
+        assert!(self.is_constructed(), "Immediate Post-Dominators were not found.");
+        assert!(self.is_reachable(node), "Node {:?} is not reachable.", node);
+        self.immediate_post_dominators[node].unwrap()
+    }
 }
 
 /// Algorithm to find Immediate Post-Dominators in a Graph.
 /// It is based on the algorithm from [David August's Lecture](
 /// https://www.cs.princeton.edu/courses/archive/spr04/cos598C/lectures/02-ControlFlow.pdf)
-pub fn post_dominators<G: ControlFlowGraph + WithExitNode>(graph: G) -> PostDominators {
+pub fn post_dominators<G: ControlFlowGraph + WithExitNode>(graph: G) -> PostDominators<G::Node> {
 
     println!("--> calculating post-dominators");
 
@@ -92,9 +108,14 @@ pub fn post_dominators<G: ControlFlowGraph + WithExitNode>(graph: G) -> PostDomi
             }
         }
 
-        println!("\t>>> ipdom {:?}", ipdom);
-
+        PostDominators {
+            immediate_post_dominators: ipdom,
+            is_constructed: true
+        }
+    } else {
+        PostDominators {
+            immediate_post_dominators: IndexVec::new(),
+            is_constructed: false
+        }
     }
-
-    PostDominators {}
 }

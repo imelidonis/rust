@@ -561,7 +561,7 @@ impl<'tcx> Body<'tcx> {
     }
 
     #[inline]
-    pub fn post_dominators(&self) -> PostDominators {
+    pub fn post_dominators(&self) -> PostDominators<BasicBlock> {
         post_dominators(self)
     }
 
