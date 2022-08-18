@@ -26,7 +26,7 @@ pub use rustc_ast::Mutability;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_data_structures::graph::dominators::{dominators, Dominators};
 use rustc_data_structures::graph::post_dominators::{post_dominators, PostDominators};
-use rustc_data_structures::graph::{self, GraphSuccessors, WithSuccessors};
+use rustc_data_structures::graph::{self, GraphSuccessors};
 use rustc_index::bit_set::BitMatrix;
 use rustc_index::vec::{Idx, IndexVec};
 use rustc_serialize::{Decodable, Encodable};
@@ -3009,10 +3009,11 @@ impl<'tcx> graph::WithStartNode for Body<'tcx> {
     }
 }
 
-impl<'tcx> graph::WithExitNode for Body<'tcx> {
+impl<'tcx> graph::WithExitNodes for Body<'tcx> {
 
-    /// Returns the Exit Node for a `Body`. Because there are cases where
-    /// a `Body` doesn't have an Exit Node, it returns `Option`.
+    /// Returns a Vector of Exit Nodes for a `Body` (a `Body` can have multiple exits).
+    /// We assume that any node without successors is exit node. In cases where a `Body`
+    /// doesn't have an Exit Node, it returns an empty Vector.
     /// 
     /// Example:
     /// 
@@ -3026,15 +3027,12 @@ impl<'tcx> graph::WithExitNode for Body<'tcx> {
     /// 
     ///     bb0
     ///      |
-    ///      | __
+    ///      |*--*
     ///      ||  |
     ///      vv  |
     ///     bb1--*
     /// 
-    /// which doesn't have an Exit Node. For this case, returns `None`
-    //
-    // FIXME: Find a way to handle the above case.
-    // FIXME: Find a way to handle cases where the `Body` has multiple exits.
+    /// which doesn't have an Exit Node.
     //
     // Examples multiple exits:
     // 
@@ -3052,30 +3050,18 @@ impl<'tcx> graph::WithExitNode for Body<'tcx> {
     // }
     // ```
     // 
-    fn exit_node(&self) -> Option<Self::Node> {
-
-        // In most cases, the last Basic Block is the Exit Node
-        // of this CFG.
-        let mut exit = self.basic_blocks().last().unwrap();
+    fn exit_nodes(&self) -> Vec<Self::Node> {
+        // A body can have multiple exits.
+        let mut exits: Vec<Self::Node> = Vec::new();
         
-        // If last node has successors, try to find the Exit Node,
-        // searching the whole vector.
-        if self.successors(exit).next().is_some() {
-            for (index, bb) in self.basic_blocks().iter().enumerate() {
-                if bb.terminator().successors().next().is_none() {
-                    exit = BasicBlock::new(index);
-
-                    break;
-                } 
+        for (index, bb) in self.basic_blocks().iter().enumerate() {
+            let terminator = bb.terminator();
+            if terminator.successors().next().is_none() {
+                exits.push(Self::Node::new(index));
             }
-        };
-
-        // If the exit node still have successors, that means
-        // this Body doesn't have an exit node so it returns None.
-        match self.successors(exit).next() {
-            Some(_) => None,
-            None => Some(exit)
         }
+
+        exits
     }
 }
 

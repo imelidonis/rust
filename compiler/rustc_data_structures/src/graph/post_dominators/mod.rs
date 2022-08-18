@@ -1,6 +1,6 @@
 // Impementation of the Algorithm to Find Post-Dominators in a Control-Flow Graph
 
-use super::{ControlFlowGraph, WithExitNode};
+use super::{ControlFlowGraph, WithExitNodes};
 use rustc_index::bit_set::BitSet;
 use rustc_index::vec::{Idx, IndexVec};
 use crate::work_queue::WorkQueue;
@@ -14,7 +14,7 @@ pub struct PostDominators<N: Idx> {
 
 impl<N: Idx> PostDominators<N> {
     // In some cases the algorithm isn't able to find post-dominators.
-    // See the code for `exit_node`.
+    // See the code for `exit_nodes`.
     pub fn is_constructed(&self) -> bool {
         self.is_constructed
     }
@@ -34,88 +34,103 @@ impl<N: Idx> PostDominators<N> {
 /// Algorithm to find Immediate Post-Dominators in a Graph.
 /// It is based on the algorithm from [David August's Lecture](
 /// https://www.cs.princeton.edu/courses/archive/spr04/cos598C/lectures/02-ControlFlow.pdf)
-pub fn post_dominators<G: ControlFlowGraph + WithExitNode>(graph: G) -> PostDominators<G::Node> {
+/// 
+/// If a graph doesn't have an exit node, post-dominators can't be calculated.
+/// Also, if a CFG has multiple nodes without successors then each of them
+/// is considered as exit node.
+/// 
+/// I assume that each exit node has as immediate post dominator itself.
+pub fn post_dominators<G: ControlFlowGraph + WithExitNodes>(graph: G) -> PostDominators<G::Node> {
 
-    println!("--> calculating post-dominators");
+    let exit_nodes = graph.exit_nodes();
 
-    if let Some(exit_node) = graph.exit_node() {
-
-        let total_nodes = graph.num_nodes();
-
-        // Initialize pdom for each node to all, except exit,
-        // which pdoms only itself.
-        let mut pdom: IndexVec<G::Node, BitSet<G::Node>> = 
-            IndexVec::from_fn_n(|node| {
-                if node == exit_node {
-                    BitSet::new_empty(total_nodes)
-                } else {
-                    BitSet::new_filled(total_nodes)
-                }
-            }, total_nodes);
-        pdom[exit_node].insert(exit_node);
-        
-        let mut change = true;
-
-        while change {
-            change = false;
-
-            for node in (0..total_nodes).map(|i| G::Node::new(i)) {
-                // Skip exit node.
-                if node == exit_node { continue; }
-
-                // First, calculate the intersection of the pdom
-                // of every successor.
-                let mut tmp = BitSet::new_filled(total_nodes);
-
-                for succ in graph.successors(node) {
-                    tmp.intersect(&pdom[succ]);
-                }
-
-                // Then add the node itself to the tmp.
-                tmp.insert(node);
-
-                if tmp != pdom[node] {
-                    change = true;
-                    pdom[node] = tmp;
-                }
-            }
-        }
-
-        // For each node v, keep all its post-dominators u
-        // that u != v. 
-        for (index, pdoms) in pdom.iter_enumerated_mut() {
-            pdoms.remove(index);
-        }
-
-        let mut ipdom: IndexVec<G::Node, Option<G::Node>> = IndexVec::from_elem_n(None, total_nodes);
-
-        let mut queue: WorkQueue<G::Node> = WorkQueue::with_none(total_nodes);
-        queue.insert(exit_node);
-
-        // Starting from the exit node, remove it from every other
-        // node's post-dominators. Then if a node doesn't have any
-        // other post-dominator, add 'node' as its immediate post-
-        // domimator and insert that in the queue to repeat the
-        // process.
-        while let Some(node) = queue.pop() {
-            for (index, pdoms) in pdom.iter_enumerated_mut() {
-                pdoms.remove(node);
-
-                if pdoms.is_empty() && ipdom[index].is_none() {
-                    ipdom[index] = Some(node);
-                    queue.insert(index);
-                }
-            }
-        }
-
-        PostDominators {
-            immediate_post_dominators: ipdom,
-            is_constructed: true
-        }
-    } else {
-        PostDominators {
+    if exit_nodes.len() == 0 {
+        return PostDominators {
             immediate_post_dominators: IndexVec::new(),
             is_constructed: false
+        };
+    }
+
+    let total_nodes = graph.num_nodes();
+
+    // Initialize pdom for each node to all, except exits,
+    // which pdom only themselves.
+    let mut pdom: IndexVec<G::Node, BitSet<G::Node>> = 
+        IndexVec::from_fn_n(|node| {
+            if exit_nodes.contains(&node) {
+                BitSet::new_empty(total_nodes)
+            } else {
+                BitSet::new_filled(total_nodes)
+            }
+        }, total_nodes);
+    for exit_node in &exit_nodes {
+        pdom[*exit_node].insert(*exit_node);
+    }
+    
+    let mut change = true;
+
+    while change {
+        change = false;
+
+        for node in (0..total_nodes).map(|i| G::Node::new(i)) {
+            // Skip exit nodes.
+            if exit_nodes.contains(&node) { continue; }
+
+            // First, calculate the intersection of the pdom
+            // of every successor.
+            let mut tmp = BitSet::new_filled(total_nodes);
+
+            for succ in graph.successors(node) {
+                tmp.intersect(&pdom[succ]);
+            }
+
+            // Then add the node itself to the tmp.
+            tmp.insert(node);
+
+            if tmp != pdom[node] {
+                change = true;
+                pdom[node] = tmp;
+            }
         }
+    }
+
+    let mut ipdom: IndexVec<G::Node, Option<G::Node>> = IndexVec::from_elem_n(None, total_nodes);
+
+    let mut queue: WorkQueue<G::Node> = WorkQueue::with_none(total_nodes);
+    for exit_node in exit_nodes {
+        queue.insert(exit_node);
+        ipdom[exit_node] = Some(exit_node); // Exit Nodes post-dominate themselves.
+    }
+
+    // For each node v, keep all its post-dominators u
+    // that u != v. Then if it doesn't have other
+    // post-dominators, we add it to the queue.
+    for (index, pdoms) in pdom.iter_enumerated_mut() {
+        pdoms.remove(index);
+        if pdoms.is_empty() {
+            queue.insert(index);
+        }
+    }
+
+    // Starting from the exit nodes, remove it from every other
+    // node's post-dominators. Then if by removing it from a node,
+    // the node doesn't have any other post-dominator, add it
+    // as its immediate post-domimator and insert that in the
+    // queue to repeat the process.
+    while let Some(node) = queue.pop() {
+        for (index, pdoms) in pdom.iter_enumerated_mut() {
+            if pdoms.remove(node)
+                && pdoms.is_empty()
+                && ipdom[index].is_none()
+            {
+                ipdom[index] = Some(node);
+                queue.insert(index);
+            }
+        }
+    }
+
+    PostDominators {
+        immediate_post_dominators: ipdom,
+        is_constructed: true
     }
 }

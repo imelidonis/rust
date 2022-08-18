@@ -16,9 +16,9 @@ impl<'graph, G: WithStartNode> WithStartNode for &'graph G {
     }
 }
 
-impl<'graph, G: WithExitNode> WithExitNode for &'graph G {
-    fn exit_node(&self) -> Option<Self::Node> {
-        (**self).exit_node()
+impl<'graph, G: WithExitNodes> WithExitNodes for &'graph G {
+    fn exit_nodes(&self) -> Vec<Self::Node> {
+        (**self).exit_nodes()
     }
 }
 

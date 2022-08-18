@@ -60,8 +60,8 @@ pub trait WithStartNode: DirectedGraph {
     fn start_node(&self) -> Self::Node;
 }
 
-pub trait WithExitNode: DirectedGraph {
-    fn exit_node(&self) -> Option<Self::Node>;
+pub trait WithExitNodes: DirectedGraph {
+    fn exit_nodes(&self) -> Vec<Self::Node>;
 }
 
 pub trait ControlFlowGraph:
