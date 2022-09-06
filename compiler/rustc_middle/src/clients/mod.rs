@@ -2,12 +2,45 @@
 
 use rustc_middle::ty::query::Providers;
 use rustc_middle::ty::{self, TyCtxt};
+use rustc_middle::mir::{Body, BasicBlock};
+use rustc_data_structures::graph::WithExitNodes;
+use rustc_index::bit_set::BitSet;
+use rustc_data_structures::graph::post_dominators::PostDominators;
+use rustc_span::def_id::LocalDefId;
 
 pub(crate) fn provide(providers: &mut Providers) {
     *providers = Providers {
         post_dominators_analysis,
         ..*providers
     };
+}
+
+
+#[allow(dead_code)]
+// This function is used only to debug the result if neccesary and to print the resut
+// in a human-readable form. It is not used because we couldn't get the result metrics
+// in that format.
+fn print_result(def_id: &LocalDefId, body: &Body<'_>, post_dominators: &PostDominators<BasicBlock>) {
+    println!("--> Post-Dominators analysis for: {:?}", def_id);
+    if post_dominators.is_constructed() {
+
+        println!("\t>>> Post Dominators calculated.");
+        println!("\t>>> Solution:");
+
+        print!("\t>>> ");
+        for (bb, _) in body.basic_blocks().iter_enumerated() {
+            if post_dominators.is_reachable(bb) {
+                let ipdom = post_dominators.immediate_post_dominator(bb);
+                print!("IPDOM({:?}) = {:?}, ", bb, ipdom);
+            } else {
+                print!("IPDOM({:?}) = None, ", bb);
+            }
+        }
+
+        println!("");
+    } else {
+        println!("\t>>> Undefined Solution")
+    }
 }
 
 fn post_dominators_analysis<'tcx>(
@@ -22,18 +55,34 @@ fn post_dominators_analysis<'tcx>(
         let body = tcx.instance_mir(ty::InstanceDef::Item(def));
 
         let post_dominators = body.post_dominators();
+        
+        // Uncomment to print the full result in the console.
+        // print_result(def_id, body, &post_dominators);
 
         if post_dominators.is_constructed() {
-            println!("\t>>> Post Dominators calculated.");
-            println!("\t>>> Solution: {:?}", post_dominators);
-
-            print!("\t>>> ");
+            let dominators = body.dominators();
+            let total_nodes = body.basic_blocks().len();
+            let mut distinct_pdom = BitSet::new_empty(total_nodes);
+            let mut distinct_dom = BitSet::new_empty(total_nodes);
+    
             for (bb, _) in body.basic_blocks().iter_enumerated() {
                 if post_dominators.is_reachable(bb) {
-                    print!("IPDOM({:?}) = {:?}, ", bb, post_dominators.immediate_post_dominator(bb));
+                    let ipdom = post_dominators.immediate_post_dominator(bb);
+                    let idom = dominators.immediate_dominator(bb);
+
+                    distinct_pdom.insert(ipdom);
+                    distinct_dom.insert(idom);
                 }
             }
-            println!("");
+            
+            let total_exit_nodes = body.exit_nodes().len();
+            let total_distinct_ipdoms = distinct_pdom.count();
+            let total_distinct_idoms = distinct_dom.count();
+
+            println!("\t--> metrics: {:?} {} {} {} {}", def_id, total_nodes, total_exit_nodes, total_distinct_ipdoms, total_distinct_idoms);
+        } else {
+            println!("\t--> Undefined Solution")
         }
+
     }
 }
