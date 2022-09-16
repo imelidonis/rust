@@ -19,14 +19,17 @@ impl<N: Idx> PostDominators<N> {
         self.is_constructed
     }
 
-    pub fn is_reachable(&self, node: N) -> bool {
+    // Because None can be encountered inside an MIR, due to multiple exit nodes,
+    // we replaced `is_reachable` as shown in `Dominators` with `is_found` here
+    // as more accurate description.
+    pub fn is_found(&self, node: N) -> bool {
         assert!(self.is_constructed(), "Immediate Post-Dominators were not found.");
         self.immediate_post_dominators[node].is_some()
     }
 
     pub fn immediate_post_dominator(&self, node: N) -> N {
         assert!(self.is_constructed(), "Immediate Post-Dominators were not found.");
-        assert!(self.is_reachable(node), "Node {:?} is not reachable.", node);
+        assert!(self.is_found(node), "Node {:?} is not reachable.", node);
         self.immediate_post_dominators[node].unwrap()
     }
 }

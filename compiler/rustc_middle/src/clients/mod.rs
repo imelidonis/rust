@@ -29,7 +29,7 @@ fn print_result(def_id: &LocalDefId, body: &Body<'_>, post_dominators: &PostDomi
 
         print!("\t>>> ");
         for (bb, _) in body.basic_blocks().iter_enumerated() {
-            if post_dominators.is_reachable(bb) {
+            if post_dominators.is_found(bb) {
                 let ipdom = post_dominators.immediate_post_dominator(bb);
                 print!("IPDOM({:?}) = {:?}, ", bb, ipdom);
             } else {
@@ -39,7 +39,7 @@ fn print_result(def_id: &LocalDefId, body: &Body<'_>, post_dominators: &PostDomi
 
         println!("");
     } else {
-        println!("\t>>> Undefined Solution")
+        println!("\t>>> Undefined Solution {:?}", def_id);
     }
 }
 
@@ -64,13 +64,20 @@ fn post_dominators_analysis<'tcx>(
             let total_nodes = body.basic_blocks().len();
             let mut distinct_pdom = BitSet::new_empty(total_nodes);
             let mut distinct_dom = BitSet::new_empty(total_nodes);
+            let mut none_count = 0;
     
             for (bb, _) in body.basic_blocks().iter_enumerated() {
-                if post_dominators.is_reachable(bb) {
+                if post_dominators.is_found(bb) {
                     let ipdom = post_dominators.immediate_post_dominator(bb);
-                    let idom = dominators.immediate_dominator(bb);
 
                     distinct_pdom.insert(ipdom);
+                } else {
+                    none_count += 1;
+                }
+
+                if dominators.is_reachable(bb) {
+                    let idom = dominators.immediate_dominator(bb);
+
                     distinct_dom.insert(idom);
                 }
             }
@@ -79,9 +86,9 @@ fn post_dominators_analysis<'tcx>(
             let total_distinct_ipdoms = distinct_pdom.count();
             let total_distinct_idoms = distinct_dom.count();
 
-            println!("\t--> metrics: {:?} {} {} {} {}", def_id, total_nodes, total_exit_nodes, total_distinct_ipdoms, total_distinct_idoms);
+            println!("\t--> metrics: {:?} {} {} {} {} {}", def_id, total_nodes, total_exit_nodes, none_count, total_distinct_ipdoms, total_distinct_idoms);
         } else {
-            println!("\t--> Undefined Solution")
+            println!("\t--> Undefined Solution {:?}", def_id);
         }
 
     }
